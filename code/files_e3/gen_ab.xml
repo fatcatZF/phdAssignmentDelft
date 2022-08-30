@@ -1,0 +1,19 @@
+<!-- generated on 2022-04-01 13:19:13 by Eclipse SUMO netedit Version 1.12.0
+--><routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="fast" maxSpeed="22.22" vClass="private" color="red"/>
+    <vType id="slow" maxSpeed="5.11" vClass="private" color="yellow"/>
+    <flow id="ab_1" type="fast" departLane="0" arrivalLane="0" begin="0.00" departSpeed="max" from="E2" to="E3" end="100.00" vehsPerHour="1000"/>
+    <flow id="ab_2" type="fast" departLane="1" arrivalLane="1" begin="0.00" departSpeed="max" from="E2" to="E3" end="100.00" vehsPerHour="1000"/>
+    <flow id="ab_3" type="fast" departLane="0" arrivalLane="0" begin="100.00" departSpeed="max" from="E2" to="E3" end="200.00" vehsPerHour="1000"/>
+    <flow id="ab_4" type="fast" departLane="1" arrivalLane="1" begin="100.00" departSpeed="max" from="E2" to="E3" end="200.00" vehsPerHour="1000"/>
+    <flow id="ab_5" type="fast" departLane="0" arrivalLane="0" begin="200.00" departSpeed="max" from="E2" to="E3" end="300.00" vehsPerHour="1000"/>
+    <flow id="ab_6" type="fast" departLane="1" arrivalLane="1" begin="200.00" departSpeed="max" from="E2" to="E3" end="300.00" vehsPerHour="1000"/>
+    <flow id="ab_7" type="fast" departLane="0" arrivalLane="0" begin="300.00" departSpeed="max" from="E2" to="E3" end="400.00" vehsPerHour="1000"/>
+    <flow id="ab_8" type="fast" departLane="1" arrivalLane="1" begin="300.00" departSpeed="max" from="E2" to="E3" end="400.00" vehsPerHour="1000"/>
+    <flow id="ab_01" type="fast" departLane="0" arrivalLane="0" begin="400.00" departSpeed="max" from="E2" to="E3" end="1600.00" vehsPerHour="1500"/>
+    <flow id="ab_02" type="fast" departLane="1" arrivalLane="1" begin="400.00" departSpeed="max" from="E2" to="E3" end="1600.00" vehsPerHour="1500"/>
+    <flow id="ab_9" type="fast" departLane="0" arrivalLane="0" begin="1600.00" departSpeed="max" from="E2" to="E3" end="1800.00" vehsPerHour="1000"/>
+    <flow id="ab_10" type="fast" departLane="1" arrivalLane="1" begin="1600.00" departSpeed="max" from="E2" to="E3" end="1800.00" vehsPerHour="1000"/>
+    <flow id="ab_11" type="fast" departLane="0" arrivalLane="0" begin="1800.00" departSpeed="max" from="E2" to="E3" end="2000.00" vehsPerHour="1000"/>
+    <flow id="ab_12" type="fast" departLane="1" arrivalLane="1" begin="1800.00" departSpeed="max" from="E2" to="E3" end="2000.00" vehsPerHour="1000"/>
+</routes>
