@@ -131,11 +131,15 @@ def compute_target_flow(density, previous_target_flow):
      the previous target flow on the ramp
     """
     #density = density/100. #The maximal density is set to 100
-    #previous_target_flow = previous_target_flow/1800.
+    previous_target_flow = previous_target_flow/1800.
     density_bin = binary(density)
+    density_bin.append(previous_target_flow)
     state = torch.tensor(density_bin)
     action, log_prob = act(state.unsqueeze(0))
     target_flow = action*100
+    # Check max and min
+    target_flow = min(target_flow,1800)
+    target_flow= max(target_flow, 60)
     return target_flow, action, state #return the current state
 
 def compute_random_target_flow(density, previous_target_flow):
@@ -143,11 +147,15 @@ def compute_random_target_flow(density, previous_target_flow):
     compute target flow randomly
     """
     #density = density/100.
-    #previous_target_flow = previous_target_flow/1800.
+    previous_target_flow = previous_target_flow/1800.
     density_bin = binary(density)
+    density_bin.append(previous_target_flow)
     state = torch.tensor(density_bin)
     action = random.randint(0,18) #get random action
     target_flow = action*100
+    # Check max and min
+    target_flow = min(target_flow,1800)
+    target_flow= max(target_flow, 60)
     return target_flow, action, state #return the current state
     
 
