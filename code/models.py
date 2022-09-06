@@ -81,7 +81,7 @@ class DMLPQ(nn.Module):
     state (density of the main road and previous target flow)
     to Q values
     """
-    def __init__(self, n_s=32, n_h=36, n_a=19):
+    def __init__(self, n_s=33, n_h=36, n_a=19):
         """
         args:
           n_s: dimension of states
