@@ -112,7 +112,7 @@ class CMLP(nn.Module):
     def __init__(self, n_s=33, n_h=32, n_o=1):
         super(CMLP, self).__init__()
         self.fc1 = nn.Linear(n_s, n_h)
-        self.fc2 = nn.Linear(n_h, n_a)
+        self.fc2 = nn.Linear(n_h, n_o)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
