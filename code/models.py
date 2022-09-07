@@ -119,6 +119,36 @@ class CMLP(nn.Module):
         x = self.fc2(x)
         return x
 
+class Actor(nn.Module):
+    def __init__(self, n_in=33, n_h=32, n_o=1, init_w=3e-3):
+        super(Actor, self).__init__()
+        self.mlp = CMLP(n_s=n_in, n_h=n_h, n_o=n_o)
+        self.init_weights(init_w)
+        
+    def init_weights(self, init_w):
+        nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
+        self.fc1.bias.data.fill_(0.001)
+        nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
+        self.fc2.bias.data.fill_(0.001)
+
+    def forward(self, x):
+        x = self.mlp(x)
+        out = torch.tanh(x)
+        return out
+
+class Critic(nn.Module):
+    def __init__(self, n_in=34, n_h=32, n_o=1, init_w=3e-3):
+        super(Critic, self).__init__()
+        self.mlp = CMLP(n_s=n_in, n_h=n_h, n_o=n_o)
+        
+    def forward(self, xs):
+        """
+        args:
+          xs: a list of state and action
+        """
+        xs = torch.cat(xs, dim=-1)
+        out = self.mlp(xs)
+        return out 
 
 class ReplayBuffer():
     """Replay Buffer stores the last N transitions
