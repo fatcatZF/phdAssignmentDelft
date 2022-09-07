@@ -3,6 +3,7 @@ from collections import deque
 import random
 
 import struct
+from turtle import forward
 
 import torch
 import torch.nn as nn
@@ -102,8 +103,21 @@ class DMLPQ(nn.Module):
         return x 
 
 
+class CMLP(nn.Module):
+    """
+    A MLP mapping the state 
+    or (state, action) to values, which 
+    can be actions or Q-values
+    """
+    def __init__(self, n_s=33, n_h=32, n_o=1):
+        super(CMLP, self).__init__()
+        self.fc1 = nn.Linear(n_s, n_h)
+        self.fc2 = nn.Linear(n_h, n_a)
 
-
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
 
 
 class ReplayBuffer():
