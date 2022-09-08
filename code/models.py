@@ -146,9 +146,8 @@ class Critic(nn.Module):
     def forward(self, xs):
         """
         args:
-          xs: a list of state and action
+          xs: a tensor concatenates states and actions
         """
-        xs = torch.cat(xs, dim=-1)
         out = self.mlp(xs)
         return out 
 
