@@ -150,6 +150,8 @@ class Critic(nn.Module):
         out = self.mlp(xs)
         return out 
 
+
+
 class ReplayBuffer():
     """Replay Buffer stores the last N transitions
        (for deep Q-learning)
