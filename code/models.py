@@ -129,9 +129,9 @@ class Actor(nn.Module):
         
     def init_weights(self, init_w):
         nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
-        self.fc1.bias.data.fill_(0.001)
+        self.mlp.fc1.bias.data.fill_(0.001)
         nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
-        self.fc2.bias.data.fill_(0.001)
+        self.mlp.fc2.bias.data.fill_(0.001)
 
     def forward(self, x):
         x = self.mlp(x)
