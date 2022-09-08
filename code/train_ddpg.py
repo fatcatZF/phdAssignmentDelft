@@ -44,14 +44,19 @@ parser.add_argument("--clear-output", type=int, default=20,
                    help="clear console output.")
 parser.add_argument("--max-episode", type=int, default=30000,
                    help="Maximal trained episodes.")
-parser.add_argument("--train_from", type=int, default=20,
-                    help="train from episode n.")
+parser.add_argument("--train-critic-from", type=int, default=20,
+                    help="train critic from episode n.")
+parser.add_argument("--train-actor-from", type=int, default=40,
+                    help="train actor from episode n.")
 
 args = parser.parse_args()
 
 gamma = args.gamma
+tau = args.tau
 lr_actor = args.lr_actor
 lr_critic = args.lr_critic
 max_episode = args.max_episode
+train_critic_from = args.train_critic_from
+train_actor_from = args.train_actor_from
 
 replay_buffer = ReplayBuffer(max_size=args.replay_size, batch_size=args.batch_size)
