@@ -128,8 +128,8 @@ class Actor(nn.Module):
         self.init_weights(init_w)
         
     def init_weights(self, init_w):
-        #nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
-        #self.mlp.fc1.bias.data.fill_(0.001)
+        nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
+        self.mlp.fc1.bias.data.fill_(0.001)
         nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
         self.mlp.fc2.bias.data.fill_(0.001)
 
@@ -142,7 +142,14 @@ class Critic(nn.Module):
     def __init__(self, n_in=34, n_h=32, n_o=1, init_w=3e-3):
         super(Critic, self).__init__()
         self.mlp = CMLP(n_s=n_in, n_h=n_h, n_o=n_o)
-        
+        self.init_weights(init_w)
+
+    def init_weights(self, init_w):
+        nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
+        self.mlp.fc1.bias.data.fill_(0.001)
+        nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
+        self.mlp.fc2.bias.data.fill_(0.001)
+
     def forward(self, xs):
         """
         args:

@@ -7,6 +7,7 @@ from ast import arg
 import os
 import json
 import pickle
+import re
 from sqlite3 import Timestamp
 
 import time
@@ -33,27 +34,29 @@ parser.add_argument("--gamma", type=float, default=0.99,
             help="discount factor.")
 parser.add_argument("--tau", type=float, default=0.005,
             help="the target network updatting rate.")
+parser.add_argument("--noise-std", type=float, default=0.2,
+            help="Standard deviation of the exploration noise.")
 parser.add_argument("--replay-size", type=int, default=20000,
             help="maximal replay buffer size.")
 parser.add_argument("--batch-size", type=int, default=64,
             help="batch size of replay.")
-parser.add_argument("--lr-actor", type=float, default=0.0005,
+parser.add_argument("--lr-actor", type=float, default=0.003,
             help="learning rate of the actor network.")
-parser.add_argument("--lr-critic", type=float, default=0.0005,
+parser.add_argument("--lr-critic", type=float, default=0.004,
             help="learning rate of the critic network.")
 parser.add_argument("--save-folder", type=str, default="logs/ddpg",
             help="Where to save the trained model.")
 parser.add_argument("--load-folder", type=str, default='',
             help="Where to load trained model.")
-parser.add_argument("--verbose-freq", type=int, default=100, 
+parser.add_argument("--verbose-freq", type=int, default=2, 
                     help="show the training process.")
 parser.add_argument("--clear-output", type=int, default=20,
                    help="clear console output.")
 parser.add_argument("--max-episode", type=int, default=30000,
                    help="Maximal trained episodes.")
-parser.add_argument("--train-critic-from", type=int, default=20,
+parser.add_argument("--train-critic-from", type=int, default=10,
                     help="train critic from episode n.")
-parser.add_argument("--train-actor-from", type=int, default=40,
+parser.add_argument("--train-actor-from", type=int, default=20,
                     help="train actor from episode n.")
 
 args = parser.parse_args()
@@ -67,13 +70,16 @@ train_critic_from = args.train_critic_from
 train_actor_from = args.train_actor_from
 
 replay_buffer = ReplayBuffer(max_size=args.replay_size, batch_size=args.batch_size)
+ou_noise = OUActionNoise(0, args.noise_std)
+# Exploration noise
+
 trained_from_scratch = True
 
 if args.save_folder and args.load_folder == '':
     exp_count = 0
     now = datetime.datetime.now()
     timestamp = now.isoformat()
-    save_folder = "{}/exp{}/".format(arg.save_folder, timestamp)
+    save_folder = "{}/exp{}/".format(args.save_folder, timestamp)
     os.mkdir(save_folder)
     trained_from_scratch = True
 
@@ -138,7 +144,7 @@ def act(state):
     return a, 0
 
 
-def compute_target_flow(density, previous_target_flow):
+def compute_target_flow(density, previous_target_flow, noise=None):
     """
     map the action to corresponding target flow
     """
@@ -148,11 +154,204 @@ def compute_target_flow(density, previous_target_flow):
     density_bin.append(previous_target_flow)
     state = torch.tensor(density_bin)
     action, log_prob = act(state.unsqueeze(0))
-    action_p = action+1 #range from 0 to 2
+    if noise is not None:
+        # add exploration noise
+        action = action + noise
+    action = np.clip(action, -1, 1) #clip the range to [-1,1]
+    action_p = action+1 #change range from 0 to 2
     target_flow = 870*action_p+60
     target_flow = min(target_flow, 1800)
     target_flow = max(target_flow, 60)
     return target_flow, action, state
+
+
+def update_target(episode):
+    """
+    update the actor and critic targets
+    """
+    if episode >= train_actor_from:
+        for target_param, param in zip(actor_target.parameters(),
+                                   actor.parameters()):
+            target_param.data.copy_(target_param.data*(1-tau)+param.data*tau)
+    if episode >= train_critic_from:
+        for target_param, param in zip(critic_target.parameters(),
+                                   critic.parameters()):
+            target_param.data.copy_(target_param.data*(1-tau)+param.data*tau)
+
+
+
+def update_params(episode):
+    """
+    update the parametres of actor and critic
+    """
+    # sample transitions from the replay buffer and train the critic network
+    if episode >= train_critic_from:
+        actor_target.eval()
+        critic.train()
+        critic_target.eval()
+        batch = replay_buffer.get_minibatch()
+        batch_trans = list(map(list, zip(*batch)))
+        states = torch.stack(batch_trans[0], dim=0)
+        #shape: [n_batch, n_s]
+        actions = batch_trans[1]
+        #shape: [n_batch]
+        actions = torch.tensor(actions)
+        actions = actions.unsqueeze(1)
+        #shape: [n_batch, 1]
+        state_actions = torch.cat([states, actions], dim=-1)
+        #shape: [n_batch, n_s+1]
+        batch_size = len(actions)
+        batch_indices = range(batch_size)
+        next_states = torch.stack(batch_trans[2],dim=0)
+        rewards = torch.tensor(batch_trans[3])
+        is_dones = torch.tensor(batch_trans[4])
+        
+        #compute next actions according to the actor network
+        with torch.no_grad():
+            next_actions = actor_target(next_states.float())
+            #shape: [n_batch, 1]
+        next_state_actions = torch.cat([next_states, next_actions], dim=-1)
+        #shape: [n_batch, n_s+1]
+
+        # Predict the Q values
+        Q_predicted = critic(state_actions.float())
+        #shape: [n_batch, 1]
+        Q_predicted = Q_predicted.squeeze(1)
+        #shape: [n_batch]
+
+        # get the next Q values
+        with torch.no_grad():
+            Q_next = critic_target(next_state_actions.float())
+            #shape: [batch_size, 1]
+        Q_next = Q_next.squeeze(1)
+        Q_next[is_dones] = 0.
+        Q_target = gamma*Q_next+rewards
+
+        # train critic network
+        loss = loss_critic(Q_predicted, Q_target)
+        optimizer_critic.zero_grad()
+        loss.backward()
+        for param in critic.parameters():
+            param.grad.data.clamp_(-1,1)
+        optimizer_critic.step()
+
+    
+    # Train the actor network to maximize the Q-values
+    if episode >= train_actor_from:
+        actor.train()
+        critic.eval()
+        actions = actor(states.float())
+        state_actions = torch.cat([states, actions], dim=-1)
+        #shape: [n_batch, n_s+1]
+        Q = critic(state_actions.float())
+        #shape: [n_batch, 1]
+        actor_loss = -Q.mean()
+        optimizer_actor.zero_grad()
+        actor_loss.backward()
+        for param in actor.parameters():
+            param.grad.data.clamp_(-1,1)
+        optimizer_actor.step()
+
+
+
+def simulate():
+    print("Initial episode: {:2d}".format(init_episode),
+          "Initial score: {:.4f}".format(init_score))
+    episode = init_episode
+    max_score = init_score
+    scores_deque = deque(maxlen=100)
+
+    if trained_from_scratch:
+        print("episode,score,score_100_ave", file=log)
+        log.flush()
+
+    while True:
+        episode += 1
+        noise = ou_noise() #get exploration noise
+        # get simulation data
+        densities, actions, states = ch.run(compute_target_flow, verbose=False, noise=noise)
+
+        # estimate flow
+        flows_episode = [estimate_flow(d) for d in densities]
+        rewards = [flow_reward(fl) for fl in flows_episode]
+
+        #ignore the reward before any action and the last action prob
+        rewards = rewards[1:]
+        actions = actions[:-1]
+        next_states = states[1:]
+        states = states[:-1]
+        is_dones = [False]*len(rewards)
+        is_dones[-1] = True
+
+        replay_buffer.add_experience(states, actions, next_states, rewards, is_dones)
+
+        # update parametres of the models.
+        update_params(episode)
+        # update parametres of the targets.
+        update_target(episode)
+
+
+        # Evaluate the performance of the deterministic policy
+        densities, actions, states = ch.run(compute_target_flow, verbose=False, noise=None)
+        # estimate flow
+        flows_episode = [estimate_flow(d) for d in densities]
+        score = np.mean(flows_episode)
+        scores_deque.append(score)
+        average_score = np.mean(scores_deque)
+
+        print("{},{},{}".format(episode, score, average_score), file=log)
+        log.flush()
+
+        if score > max_score:
+            max_score = score
+            info = {"episode":episode,"score":score}
+            with open(info_file, 'w') as f:
+                json.dump(info, f)
+            
+            torch.save(actor, actor_file)
+            torch.save(actor_target, actor_target_file)
+            torch.save(critic, critic_file)
+            torch.save(critic_target, critic_target_file)
+
+        with open(replay_file, 'wb') as f:
+            pickle.dump(replay_buffer, f)
+
+        
+        if episode % args.verbose_freq == 0:
+             print("Episode {:2d} Score: {:.4f}".format(episode, score))
+
+        if episode % args.clear_output == 0:
+            os.system("clear")
+
+        if episode >= max_episode:
+            break
+
+
+
+simulate()
+log.close()
+
+        
+
+
+    
+
+
+    
+
+
+
+
+
+
+
+            
+            
+        
+
+        
+
+    
 
     
 

@@ -12,10 +12,10 @@ else:
 
 import traci
 
-def get_control(density, previous_target_flow, time_val, control_alg, verbose=False):
+def get_control(density, previous_target_flow, time_val, control_alg, verbose=False, noise=None):
 
     # Call passed alinea function
-    target_flow, log_prob, state = control_alg(density, previous_target_flow)
+    target_flow, log_prob, state = control_alg(density, previous_target_flow, noise)
 
     # Calc prop
     known_sat = 1800
@@ -46,7 +46,7 @@ def get_control(density, previous_target_flow, time_val, control_alg, verbose=Fa
     
     return r_time, trigger, target_flow, log_prob, state
     
-def control_run(control_function, verbose):
+def control_run(control_function, verbose, noise=None):
     # Init var
     step = 0
     start_cycle = 0
@@ -98,7 +98,8 @@ def control_run(control_function, verbose):
             density = avg_veh_count_hours / avg_speed
             avg_speed_mul_count = avg_speed*(sum([veh_count_up, veh_count_down]) / 2)
             speed_mul_counts.append(avg_speed_mul_count) #reward of the last action
-            r_time, trigger, previous_target_flow, log_prob, state = get_control(density, previous_target_flow, time_val, control_function, verbose)
+            r_time, trigger, previous_target_flow, log_prob, state = get_control(density, previous_target_flow, time_val, control_function, verbose,
+                                                                                noise)
                                                                          
             saved_log_probs.append(log_prob)
             states.append(state)
@@ -140,6 +141,6 @@ def control_run(control_function, verbose):
     return densities, saved_log_probs, states
     
 
-def run(control_function, verbose=False):    
-    densities, saved_log_probs, states = control_run(control_function, verbose)
+def run(control_function, verbose=False, noise=None):    
+    densities, saved_log_probs, states = control_run(control_function, verbose, noise)
     return densities, saved_log_probs, states
