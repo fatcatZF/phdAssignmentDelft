@@ -40,9 +40,9 @@ parser.add_argument("--replay-size", type=int, default=20000,
             help="maximal replay buffer size.")
 parser.add_argument("--batch-size", type=int, default=64,
             help="batch size of replay.")
-parser.add_argument("--lr-actor", type=float, default=0.003,
+parser.add_argument("--lr-actor", type=float, default=0.0007,
             help="learning rate of the actor network.")
-parser.add_argument("--lr-critic", type=float, default=0.004,
+parser.add_argument("--lr-critic", type=float, default=0.001,
             help="learning rate of the critic network.")
 parser.add_argument("--save-folder", type=str, default="logs/ddpg",
             help="Where to save the trained model.")
@@ -58,6 +58,8 @@ parser.add_argument("--train-critic-from", type=int, default=10,
                     help="train critic from episode n.")
 parser.add_argument("--train-actor-from", type=int, default=20,
                     help="train actor from episode n.")
+parser.add_argument("--debug", action="store_true", default=False,
+        help="Whether debug the training process.")
 
 args = parser.parse_args()
 
@@ -68,6 +70,7 @@ lr_critic = args.lr_critic
 max_episode = args.max_episode
 train_critic_from = args.train_critic_from
 train_actor_from = args.train_actor_from
+if_debug = args.debug
 
 replay_buffer = ReplayBuffer(max_size=args.replay_size, batch_size=args.batch_size)
 ou_noise = OUActionNoise(0, args.noise_std)
@@ -96,6 +99,9 @@ critic_target_file = os.path.join(save_folder, "critic_target.pt")
 replay_file = os.path.join(save_folder, "replay_buffer.pkl")
 log_file = os.path.join(save_folder, "log.txt")
 log = open(log_file, 'a')
+if if_debug:
+    debug_file = os.path.join(save_folder, "log_debug.txt")
+    log_debug = open(debug_file, 'w')
 
 if trained_from_scratch:
     print("train from scratch!")
@@ -160,6 +166,7 @@ def compute_target_flow(density, previous_target_flow, noise=None):
     action = np.clip(action, -1, 1) #clip the range to [-1,1]
     action_p = action+1 #change range from 0 to 2
     target_flow = 870*action_p+60
+    #target_flow = 870*action+930
     target_flow = min(target_flow, 1800)
     target_flow = max(target_flow, 60)
     return target_flow, action, state
@@ -198,8 +205,9 @@ def update_params(episode):
         actions = torch.tensor(actions)
         actions = actions.unsqueeze(1)
         #shape: [n_batch, 1]
-        state_actions = torch.cat([states, actions], dim=-1)
+        #state_actions = torch.cat([states, actions], dim=-1)
         #shape: [n_batch, n_s+1]
+        state_actions = [states.float(), actions.float()]
         batch_size = len(actions)
         batch_indices = range(batch_size)
         next_states = torch.stack(batch_trans[2],dim=0)
@@ -210,18 +218,18 @@ def update_params(episode):
         with torch.no_grad():
             next_actions = actor_target(next_states.float())
             #shape: [n_batch, 1]
-        next_state_actions = torch.cat([next_states, next_actions], dim=-1)
-        #shape: [n_batch, n_s+1]
+        #next_state_actions = torch.cat([next_states, next_actions], dim=-1)
+        next_state_actions = [next_states.float(), next_actions.float()]
 
         # Predict the Q values
-        Q_predicted = critic(state_actions.float())
+        Q_predicted = critic(state_actions)
         #shape: [n_batch, 1]
         Q_predicted = Q_predicted.squeeze(1)
         #shape: [n_batch]
 
         # get the next Q values
         with torch.no_grad():
-            Q_next = critic_target(next_state_actions.float())
+            Q_next = critic_target(next_state_actions)
             #shape: [batch_size, 1]
         Q_next = Q_next.squeeze(1)
         Q_next[is_dones] = 0.
@@ -231,8 +239,15 @@ def update_params(episode):
         loss = loss_critic(Q_predicted, Q_target)
         optimizer_critic.zero_grad()
         loss.backward()
+        if if_debug:
+            print("Episode: {}".format(episode), file=log_debug)
+            print("Gradient Norm of Critic: ", file=log_debug)
+            log_debug.flush()
         for param in critic.parameters():
             param.grad.data.clamp_(-1,1)
+            if if_debug:
+                print(param.grad.norm(), file=log_debug)
+                log_debug.flush()
         optimizer_critic.step()
 
     
@@ -241,15 +256,19 @@ def update_params(episode):
         actor.train()
         critic.eval()
         actions = actor(states.float())
-        state_actions = torch.cat([states, actions], dim=-1)
-        #shape: [n_batch, n_s+1]
-        Q = critic(state_actions.float())
+        state_actions = [states.float(), actions.float()]
+        Q = critic(state_actions)
         #shape: [n_batch, 1]
         actor_loss = -Q.mean()
         optimizer_actor.zero_grad()
         actor_loss.backward()
+        if if_debug:
+            print("Gradient Norm of actor: ", file=log_debug)
         for param in actor.parameters():
             param.grad.data.clamp_(-1,1)
+            if if_debug:
+                print(param.grad.norm(), file=log_debug)
+                log_debug.flush()
         optimizer_actor.step()
 
 
@@ -330,6 +349,8 @@ def simulate():
 
 simulate()
 log.close()
+if if_debug:
+    log_debug.close()
 
         
 

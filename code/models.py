@@ -105,58 +105,45 @@ class DMLPQ(nn.Module):
         return x 
 
 
-class CMLP(nn.Module):
-    """
-    A MLP mapping the state 
-    or (state, action) to values, which 
-    can be actions or Q-values
-    """
-    def __init__(self, n_s=33, n_h=32, n_o=1):
-        super(CMLP, self).__init__()
-        self.fc1 = nn.Linear(n_s, n_h)
-        self.fc2 = nn.Linear(n_h, n_o)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
 class Actor(nn.Module):
     def __init__(self, n_in=33, n_h=32, n_o=1, init_w=3e-3):
         super(Actor, self).__init__()
-        self.mlp = CMLP(n_s=n_in, n_h=n_h, n_o=n_o)
+        self.fc_in = nn.Linear(n_in, n_h)
+        self.fc_out = nn.Linear(n_h, n_o)
         self.init_weights(init_w)
-        
+    
     def init_weights(self, init_w):
-        nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
-        self.mlp.fc1.bias.data.fill_(0.001)
-        nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
-        self.mlp.fc2.bias.data.fill_(0.001)
+        nn.init.uniform_(self.fc_in.weight, -init_w, init_w)
+        self.fc_in.bias.data.fill_(0.001)
+        nn.init.uniform_(self.fc_out.weight, -init_w, init_w)
+        self.fc_out.bias.data.fill_(0.001)
 
     def forward(self, x):
-        x = self.mlp(x)
-        out = torch.tanh(x)
-        return out
+        x = F.relu(self.fc_in(x))
+        x = torch.tanh(self.fc_out(x))
+        return x
 
 class Critic(nn.Module):
-    def __init__(self, n_in=34, n_h=32, n_o=1, init_w=3e-3):
+    def __init__(self, n_s=33, n_a=1, n_h=32,
+                 n_o=1):
         super(Critic, self).__init__()
-        self.mlp = CMLP(n_s=n_in, n_h=n_h, n_o=n_o)
-        self.init_weights(init_w)
+        #self.fc_s = nn.Linear(n_s, n_hs)
+        #self.fc_a = nn.Linear(n_a, n_ha)
+        self.fc_in = nn.Linear(n_s+n_a, n_h)
+        self.fc_o = nn.Linear(n_h, n_o)
 
-    def init_weights(self, init_w):
-        nn.init.uniform_(self.mlp.fc1.weight, -init_w, init_w)
-        self.mlp.fc1.bias.data.fill_(0.001)
-        nn.init.uniform_(self.mlp.fc2.weight, -init_w, init_w)
-        self.mlp.fc2.bias.data.fill_(0.001)
-
-    def forward(self, xs):
+    def forward(self, xa):
         """
         args:
-          xs: a tensor concatenates states and actions
+          xa: a list of states and actions
         """
-        out = self.mlp(xs)
+        x = torch.cat(xa, dim=-1)
+        x = F.relu(self.fc_in(x))
+        out = self.fc_o(x)
         return out 
+
+
+
 
 
 class OUActionNoise:
