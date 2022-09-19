@@ -52,7 +52,7 @@ parser.add_argument("--verbose-freq", type=int, default=2,
                     help="show the training process.")
 parser.add_argument("--clear-output", type=int, default=20,
                    help="clear console output.")
-parser.add_argument("--max-episode", type=int, default=30000,
+parser.add_argument("--max-episode", type=int, default=10000,
                    help="Maximal trained episodes.")
 parser.add_argument("--train-critic-from", type=int, default=10,
                     help="train critic from episode n.")
@@ -146,6 +146,7 @@ def act(state):
         a: the corresponding action, range from -1 to 1
         0: the log probability
     """
+    actor.eval()
     a = actor(state.float()).cpu().item()
     return a, 0
 

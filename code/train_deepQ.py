@@ -97,8 +97,8 @@ if args.load_folder != '':
 else:
     #train from scratch
     print("train from scratch!")
-    policy = DMLPQ() #initialize the policy network
-    target = DMLPQ() #initialize the target network
+    policy = DMLPQ2() #initialize the policy network
+    target = DMLPQ2() #initialize the target network
     target.load_state_dict(policy.state_dict())
     init_episode = 0
     init_score = 0.
@@ -119,12 +119,13 @@ def act(state):
        policy: a policy network
        state: current state, a torch tensor with shape [n_batch=1, n_s]
     """
+    policy.eval()
     Q = policy(state.float()).cpu() #shape of Q: [n_batch=1, n_actions]
     action = torch.argmax(Q) #shape:[n_batch=1]
     return action.item(), 0
 
 
-def compute_target_flow(density, previous_target_flow):
+def compute_target_flow(density, previous_target_flow, noise=None):
     """
     compute target flow given the 
      density on the main road and 
@@ -142,7 +143,7 @@ def compute_target_flow(density, previous_target_flow):
     target_flow= max(target_flow, 60)
     return target_flow, action, state #return the current state
 
-def compute_random_target_flow(density, previous_target_flow):
+def compute_random_target_flow(density, previous_target_flow, noise=None):
     """
     compute target flow randomly
     """
@@ -179,7 +180,7 @@ def replay():
     next_states = torch.stack(batch_trans[2],dim=0)
     rewards = torch.tensor(batch_trans[3])
     is_dones = torch.tensor(batch_trans[4])
-
+    policy.train()
     #predict the Q values
     Q_predicted = policy(states.float())
     #get predicted Q(s,a)
@@ -210,7 +211,7 @@ def simulate():
     max_score = init_score
     eps = init_eps
     scores_deque = deque(maxlen=100)
-    print("episode,score,score_100_ave", file=log)
+    print("episode,score,score_100_ave,guess,eps", file=log)
     log.flush()
     guess = True #take random action
     while True:
@@ -242,7 +243,7 @@ def simulate():
                 pickle.dump(replay_buffer, f)
 
 
-        print("{},{},{}".format(episode, score, average_score), file=log)
+        print("{},{},{},{},{}".format(episode, score, average_score,guess,eps), file=log)
         log.flush()
 
         #rewards = [speedMulCount_reward(r) for r in speed_mul_counts]
